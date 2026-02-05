@@ -1,0 +1,17 @@
+# Virtual environment
+.venv/
+
+# Python
+__pycache__/
+*.pyc
+
+# Output files
+*_output*.png
+test_*.png
+debug_*.png
+
+# Large source files (keep in Figma)
+Character Image.svg
+
+# OS files
+.DS_Store
