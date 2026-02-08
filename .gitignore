@@ -16,5 +16,12 @@ Archive/
 # Test output
 test_output/
 
+# Debug screenshots
+Debug Screenshots/
+
+# Xcode user data
+*.xcuserstate
+xcuserdata/
+
 # OS files
 .DS_Store
