@@ -1,12 +1,13 @@
 # Character Avatar Icon Compositor
 
-A Python tool for compositing character images onto a gradient portal background with SVG masking. Generates stylized avatar icons matching a Figma design.
+A Python tool for compositing character images onto a portal background with masking. Generates stylized avatar icons matching a Figma design.
 
 ## Features
 
-- Composites character images onto a gradient portal background
-- Uses SVG mask to clip character to a blob shape
-- Customizable gradient colors (orange, blue, green, purple, red, or custom)
+- Composites character images onto a portal background
+- Uses PNG mask to clip character to an egg-shaped blob
+- **Gradient fills** - Customizable colors (orange, blue, green, purple, red, or custom)
+- **Image fills** - Use any image as the portal background
 - Adjustable character scale, rotation, and position
 - Supports transparent PNGs
 - Web UI for interactive tweaking
@@ -26,11 +27,11 @@ Requires Python 3.
 ### Command Line
 
 ```bash
-# Basic usage
+# Basic usage (gradient fill)
 ./run.sh character.png output.png
 
-# From URL
-./run.sh https://example.com/character.png output.png
+# With image fill
+./run.sh character.png output.png --fill background.png
 ```
 
 This generates the avatar with the default orange gradient, plus blue, green, and purple variants.
@@ -43,9 +44,10 @@ This generates the avatar with the default orange gradient, plus blue, green, an
 
 Opens a Gradio web interface at http://localhost:7860 where you can:
 - Upload a character image (transparent PNG recommended)
+- Choose between gradient or image fill
 - Pick gradient colors with color pickers
+- Upload a background image for image fill
 - Adjust character scale, rotation, and position
-- Tweak mask and portal offsets
 - See live preview as you change settings
 
 ## Configuration
@@ -66,24 +68,38 @@ Default settings (can be adjusted in UI or code):
 ├── ui.py                 # Gradio web UI
 ├── run.sh               # CLI entry point
 ├── run_ui.sh            # Web UI entry point
-├── portal.svg           # Portal shape (gradient background)
-├── mask.svg             # Mask shape (clips character)
+├── portal_shape.png     # Portal shape mask (egg-shaped)
+├── mask_shape.png       # Character mask shape
 ├── Frankie.png          # Example character
 └── requirements.txt     # Python dependencies
 ```
 
 ## How It Works
 
-1. **Portal Layer**: Renders the portal SVG with customizable gradient colors
+1. **Portal Layer**: Creates the portal shape with either gradient or image fill
 2. **Character Layer**: Loads and scales the character image
-3. **Masking**: Applies the mask SVG to clip the character to a blob shape
+3. **Masking**: Applies the mask shape to clip the character
 4. **Compositing**: Layers the masked character over the portal
 
-The portal and mask SVGs share the same coordinate system (340×341) ensuring perfect alignment.
+## Fill Types
+
+### Gradient Fill
+```python
+from avatar_compositor import composite_avatar, PortalGradient
+
+avatar = composite_avatar("character.png", PortalGradient.blue())
+```
+
+### Image Fill
+```python
+from avatar_compositor import composite_avatar
+
+avatar = composite_avatar("character.png", "landscape.png")
+```
 
 ## Dependencies
 
 - Pillow - Image processing
-- cairosvg - SVG rendering
 - requests - URL fetching
 - gradio - Web UI (for run_ui.sh only)
+- cairosvg - SVG rendering (optional, for legacy SVG shapes)
