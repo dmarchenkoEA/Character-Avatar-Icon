@@ -13,5 +13,8 @@ debug_*.png
 # Archive folder (local test files)
 Archive/
 
+# Test output
+test_output/
+
 # OS files
 .DS_Store

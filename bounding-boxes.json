@@ -1,0 +1,22 @@
+{
+  "fox": {
+    "bbox": [586, 21, 1014, 547],
+    "label": "head",
+    "confidence": 0.6944796442985535
+  },
+  "kirby": {
+    "bbox": [92, 1, 1286, 1197],
+    "label": "head",
+    "confidence": 0.4805317521095276
+  },
+  "frankie": {
+    "bbox": [407, 105, 686, 510],
+    "label": "head",
+    "confidence": 0.6730770468711853
+  },
+  "Trainer Rex": {
+    "bbox": [372, 62, 598, 307],
+    "label": "head",
+    "confidence": 0.6765797734260559
+  }
+}

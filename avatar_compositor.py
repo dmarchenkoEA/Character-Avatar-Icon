@@ -100,6 +100,107 @@ class AvatarConfig:
     _internal_scale: float = 1.0  # Used internally for sub-pixel rendering
 
 
+@dataclass
+class HeadBoundingBox:
+    """Bounding box for character's head, used for auto-framing."""
+    x1: int
+    y1: int
+    x2: int
+    y2: int
+
+    @classmethod
+    def from_list(cls, bbox: list) -> "HeadBoundingBox":
+        """Create from [x1, y1, x2, y2] list."""
+        return cls(x1=bbox[0], y1=bbox[1], x2=bbox[2], y2=bbox[3])
+
+    @property
+    def width(self) -> int:
+        return self.x2 - self.x1
+
+    @property
+    def height(self) -> int:
+        return self.y2 - self.y1
+
+    @property
+    def center_x(self) -> float:
+        return (self.x1 + self.x2) / 2
+
+    @property
+    def center_y(self) -> float:
+        return (self.y1 + self.y2) / 2
+
+
+def compute_auto_config(
+    image_size: Tuple[int, int],
+    head_bbox: Union[HeadBoundingBox, list, Tuple[int, int, int, int]],
+    target_frame_height: int = 450,
+    target_frame_top: int = 10,
+    shoulder_extension: float = 0.5,
+    output_scale: float = 1.0,
+) -> AvatarConfig:
+    """
+    Compute optimal AvatarConfig for auto-framing based on head bounding box.
+
+    Uses a unified algorithm that naturally adapts to any character type:
+    - Defines a "frame region" from head top to shoulders (or image bottom)
+    - Scales so this frame fits the target area
+    - No character classification needed
+
+    Args:
+        image_size: (width, height) of the source image
+        head_bbox: Bounding box of head as [x1, y1, x2, y2] or HeadBoundingBox
+        target_frame_height: Desired height of the frame region in output pixels
+        target_frame_top: Y position for top of frame in output
+        shoulder_extension: How far below head to extend (as fraction of head height)
+        output_scale: Scale factor for final output
+
+    Returns:
+        AvatarConfig configured for optimal character framing
+    """
+    if isinstance(head_bbox, (list, tuple)):
+        head_bbox = HeadBoundingBox.from_list(head_bbox)
+
+    img_width, img_height = image_size
+
+    # Define the "frame region" we want to capture:
+    # - Top: top of head
+    # - Bottom: head bottom + shoulders, OR image bottom (whichever is closer)
+    frame_top = head_bbox.y1
+    frame_bottom = min(
+        head_bbox.y2 + head_bbox.height * shoulder_extension,
+        img_height
+    )
+    frame_height = frame_bottom - frame_top
+    frame_center_x = head_bbox.center_x
+
+    # Scale so the frame fits the target height
+    scale = target_frame_height / frame_height
+
+    # Calculate scaled dimensions
+    scaled_width = int(img_width * scale)
+    scaled_height = int(img_height * scale)
+
+    # Calculate positions after scaling
+    scaled_frame_top = frame_top * scale
+    scaled_frame_center_x = frame_center_x * scale
+
+    # Calculate offset to position frame correctly
+    # Center horizontally in the 340px output width
+    output_center_x = 170
+    offset_x = int(output_center_x - scaled_frame_center_x)
+
+    # Position frame top at target_frame_top
+    offset_y = int(target_frame_top - scaled_frame_top)
+
+    return AvatarConfig(
+        character_size=(scaled_width, scaled_height),
+        character_offset=(offset_x, offset_y),
+        face_position=0.0,  # No cropping needed - we're positioning directly
+        character_rotation=0.0,  # Disable rotation for auto mode
+        output_scale=output_scale,
+    )
+
+
 def hex_to_rgb(hex_color: str) -> Tuple[int, int, int]:
     """Convert hex color to RGB tuple."""
     hex_color = hex_color.lstrip('#')
