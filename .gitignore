@@ -10,8 +10,8 @@ __pycache__/
 test_*.png
 debug_*.png
 
-# Large source files (keep in Figma)
-Character Image.svg
+# Archive folder (local test files)
+Archive/
 
 # OS files
 .DS_Store
