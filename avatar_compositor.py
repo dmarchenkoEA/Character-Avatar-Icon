@@ -54,15 +54,50 @@ class PortalGradient:
 @dataclass
 class AvatarConfig:
     """Configuration for avatar generation."""
-    output_size: Tuple[int, int] = (340, 341)
-    portal_size: Tuple[int, int] = (340, 376)   # Scaled from 230x254
-    mask_size: Tuple[int, int] = (340, 472)     # Scaled from 230x319
-    portal_offset: Tuple[int, int] = (0, 38)    # Portal slightly lower
-    mask_offset: Tuple[int, int] = (0, -48)     # Mask extends above
+    # Base sizes (at scale 1.0)
+    output_size: Tuple[int, int] = (340, 400)
+    portal_size: Tuple[int, int] = (340, 340)
+    mask_size: Tuple[int, int] = (340, 430)
+    portal_offset: Tuple[int, int] = (0, 60)
+    mask_offset: Tuple[float, float] = (0, -29.6)   # Sub-pixel offset for hairline alignment
     character_offset: Tuple[int, int] = (-70, -40)
-    character_size: Tuple[int, int] = (449, 804)  # 1.1x original
+    character_size: Tuple[int, int] = (449, 804)
     character_rotation: float = 3.0
     face_position: float = 0.0
+    output_scale: float = 1.0  # Scale factor for output (1.0 = 340x400, 2.0 = 680x800, etc.)
+
+    def scaled(self) -> "AvatarConfig":
+        """Return a new config with all sizes scaled by output_scale.
+
+        For sub-pixel precision, we render at 2x and downscale.
+        """
+        # Check if we need sub-pixel precision
+        has_subpixel = any(
+            isinstance(v, float) and v != int(v)
+            for v in [self.mask_offset[0], self.mask_offset[1],
+                      self.portal_offset[0], self.portal_offset[1],
+                      self.character_offset[0], self.character_offset[1]]
+        )
+
+        # Use 2x internal scale for sub-pixel precision
+        internal_scale = 2.0 if has_subpixel else 1.0
+        s = self.output_scale * internal_scale
+
+        return AvatarConfig(
+            output_size=(int(self.output_size[0] * s), int(self.output_size[1] * s)),
+            portal_size=(int(self.portal_size[0] * s), int(self.portal_size[1] * s)),
+            mask_size=(int(self.mask_size[0] * s), int(self.mask_size[1] * s)),
+            portal_offset=(int(self.portal_offset[0] * s), int(self.portal_offset[1] * s)),
+            mask_offset=(int(self.mask_offset[0] * s), int(self.mask_offset[1] * s)),
+            character_offset=(int(self.character_offset[0] * s), int(self.character_offset[1] * s)),
+            character_size=(int(self.character_size[0] * s), int(self.character_size[1] * s)),
+            character_rotation=self.character_rotation,
+            face_position=self.face_position,
+            output_scale=1.0,  # Already scaled
+            _internal_scale=internal_scale  # Track for downscaling
+        )
+
+    _internal_scale: float = 1.0  # Used internally for sub-pixel rendering
 
 
 def hex_to_rgb(hex_color: str) -> Tuple[int, int, int]:
@@ -208,13 +243,16 @@ def composite_avatar(
     if config is None:
         config = AvatarConfig()
 
+    # Apply scaling
+    config = config.scaled()
+
     if fill is None:
         fill = PortalGradient.orange()
 
     if portal_shape is None:
-        portal_shape = os.path.join(SCRIPT_DIR, "portal_shape.png")
+        portal_shape = os.path.join(SCRIPT_DIR, "portal_shape.svg")
     if mask_shape is None:
-        mask_shape = os.path.join(SCRIPT_DIR, "mask_shape.png")
+        mask_shape = os.path.join(SCRIPT_DIR, "mask_shape.svg")
 
     # Create the base canvas
     canvas = Image.new("RGBA", config.output_size, (0, 0, 0, 0))
@@ -298,6 +336,14 @@ def composite_avatar(
     # 5. Composite masked character onto canvas
     canvas = Image.alpha_composite(canvas, char_layer)
 
+    # 6. Downscale if we rendered at higher resolution for sub-pixel precision
+    if hasattr(config, '_internal_scale') and config._internal_scale > 1.0:
+        original_size = (
+            int(canvas.width / config._internal_scale),
+            int(canvas.height / config._internal_scale)
+        )
+        canvas = canvas.resize(original_size, Image.Resampling.LANCZOS)
+
     return canvas
 
 
@@ -305,10 +351,11 @@ if __name__ == "__main__":
     import sys
 
     if len(sys.argv) < 2:
-        print("Usage: python avatar_compositor.py <character_image> [output_path] [--fill image.png]")
+        print("Usage: python avatar_compositor.py <character_image> [output_path] [--fill image.png] [--scale 2.0]")
         print("\nExamples:")
         print("  python avatar_compositor.py character.png avatar.png")
         print("  python avatar_compositor.py character.png avatar.png --fill background.png")
+        print("  python avatar_compositor.py character.png avatar.png --scale 2.0")
         sys.exit(1)
 
     character_path = sys.argv[1]
@@ -321,10 +368,17 @@ if __name__ == "__main__":
         if fill_idx + 1 < len(sys.argv):
             fill = sys.argv[fill_idx + 1]
 
+    # Check for --scale argument
+    config = AvatarConfig()
+    if '--scale' in sys.argv:
+        scale_idx = sys.argv.index('--scale')
+        if scale_idx + 1 < len(sys.argv):
+            config.output_scale = float(sys.argv[scale_idx + 1])
+
     # Create avatar
-    avatar = composite_avatar(character_source=character_path, fill=fill)
+    avatar = composite_avatar(character_source=character_path, fill=fill, config=config)
     avatar.save(output_path, "PNG")
-    print(f"Avatar saved to {output_path}")
+    print(f"Avatar saved to {output_path} (size: {avatar.size[0]}x{avatar.size[1]})")
 
     # Create gradient variants
     for name, gradient in [
@@ -332,7 +386,7 @@ if __name__ == "__main__":
         ("green", PortalGradient.green()),
         ("purple", PortalGradient.purple()),
     ]:
-        variant = composite_avatar(character_source=character_path, fill=gradient)
+        variant = composite_avatar(character_source=character_path, fill=gradient, config=config)
         variant_path = output_path.replace(".png", f"_{name}.png")
         variant.save(variant_path, "PNG")
         print(f"Variant saved to {variant_path}")

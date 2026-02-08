@@ -21,6 +21,7 @@ def generate_avatar(
     portal_x_offset,
     portal_y_offset,
     face_position,
+    output_scale,
     add_white_bg
 ):
     if character_image is None:
@@ -41,15 +42,16 @@ def generate_avatar(
     char_height = int(base_height * character_scale)
 
     config = AvatarConfig(
-        output_size=(340, 341),
-        portal_size=(340, 376),
-        mask_size=(340, 472),
+        output_size=(340, 400),
+        portal_size=(340, 340),
+        mask_size=(340, 430),
         portal_offset=(int(portal_x_offset), int(portal_y_offset)),
         mask_offset=(int(mask_x_offset), int(mask_y_offset)),
         character_offset=(int(character_x_offset), int(character_y_offset)),
         character_size=(char_width, char_height),
         character_rotation=character_rotation,
-        face_position=face_position
+        face_position=face_position,
+        output_scale=output_scale
     )
 
     result = composite_avatar(
@@ -94,11 +96,14 @@ with gr.Blocks(title="Avatar Compositor") as app:
 
             gr.Markdown("### Mask Offset")
             mask_x_offset = gr.Slider(-100, 100, value=0, step=1, label="Mask X")
-            mask_y_offset = gr.Slider(-200, 100, value=-48, step=1, label="Mask Y")
+            mask_y_offset = gr.Slider(-200, 100, value=-30, step=1, label="Mask Y")
 
             gr.Markdown("### Portal Offset")
             portal_x_offset = gr.Slider(-100, 100, value=0, step=1, label="Portal X")
-            portal_y_offset = gr.Slider(-100, 100, value=38, step=1, label="Portal Y")
+            portal_y_offset = gr.Slider(-100, 150, value=60, step=1, label="Portal Y")
+
+            gr.Markdown("### Output Size")
+            output_scale = gr.Slider(0.5, 4.0, value=1.0, step=0.25, label="Output Scale (1.0 = 340x400)")
 
             gr.Markdown("### Preview Options")
             add_white_bg = gr.Checkbox(value=True, label="Add white background (for preview)")
@@ -123,6 +128,7 @@ with gr.Blocks(title="Avatar Compositor") as app:
         portal_x_offset,
         portal_y_offset,
         face_position,
+        output_scale,
         add_white_bg
     ]
 
